@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADU Buffer Performance Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .simulation-container {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            position: relative;
+        }
+        
+        .day-counter {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 123, 255, 0.95);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50%;
+            font-size: 24px;
+            font-weight: bold;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0, 123, 255, 0.3);
+        }
+        
+        .day-counter.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .scenario {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 5px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        
+        .scenario.winner {
+            border-left-color: #ffd700;
+            background: #fffbf0;
+            animation: winnerPulse 2s ease-in-out;
+            position: relative;
+        }
+        
+        .scenario.winner::after {
+            content: "🏆 WINNER!";
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            animation: winnerBadge 1s ease-out;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+        
+        @keyframes winnerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        @keyframes winnerBadge {
+            0% { 
+                opacity: 0; 
+                transform: scale(0) rotate(-180deg); 
+            }
+            70% { 
+                transform: scale(1.1) rotate(10deg); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1) rotate(0deg); 
+            }
+        }
+        
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .scenario-title {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .gap-indicator {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .gap-good {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .gap-fair {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .gap-poor {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .buffer-visualization {
+            position: relative;
+            height: 60px;
+            background: #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .buffer-total {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            transition: width 0.5s ease;
+        }
+        
+        .buffer-consumed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #1e7e34);
+            border-radius: 8px 0 0 8px;
+            /* Removed smooth transition for step-by-step effect */
+        }
+        
+        .buffer-gap {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            background: #dc3545;
+            border-radius: 0 8px 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .daily-consumption {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .day {
+            background: #6c757d;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+        
+        .day.active {
+            background: #28a745;
+            opacity: 1;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+            transition: background 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 15px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">ADU Horizon Setting Performance Simulation</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Testing different ADU horizons to find the smallest gap between ADU*Buffer Days and actual consumption
+        </p>
+        
+        <div class="simulation-container" id="simulationContainer">
+            <!-- Scenarios will be generated here -->
+        </div>
+        
+        <div class="day-counter" id="dayCounter">Day 1</div>
+        
+        <div class="controls">
+            <button class="btn" onclick="runSimulation()" id="runBtn">Run Simulation</button>
+            <button class="btn" onclick="resetSimulation()" id="resetBtn">Reset</button>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(90deg, #007bff, #0056b3);"></div>
+                <span>Calculated ADU×Buffer Days</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(90deg, #28a745, #1e7e34);"></div>
+                <span>Actual Sales Consumed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #dc3545;"></div>
+                <span>Gap (Over/Under)</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scenarios = [
+            {
+                name: "30-Day ADU Horizon",
+                bufferDays: 15,
+                calculatedADU: 8.4, // Will be 126 units total, 1 less than actual sales (127)
+                actualSales: [12, 6, 9, 8, 11, 7, 5, 9, 10, 8, 6, 12, 7, 9, 8]
+            },
+            {
+                name: "60-Day ADU Horizon", 
+                bufferDays: 15,
+                calculatedADU: 9.2,
+                actualSales: [12, 6, 9, 8, 11, 7, 5, 9, 10, 8, 6, 12, 7, 9, 8]
+            },
+            {
+                name: "90-Day ADU Horizon",
+                bufferDays: 15,
+                calculatedADU: 8.8,
+                actualSales: [12, 6, 9, 8, 11, 7, 5, 9, 10, 8, 6, 12, 7, 9, 8]
+            }
+        ];
+
+        let isRunning = false;
+
+        function initializeScenarios() {
+            const container = document.getElementById('simulationContainer');
+            container.innerHTML = '';
+            
+            // Find the maximum buffer size for scaling
+            const maxBufferSize = Math.max(...scenarios.map(s => s.calculatedADU * s.bufferDays));
+            
+            scenarios.forEach((scenario, index) => {
+                const bufferSize = scenario.calculatedADU * scenario.bufferDays;
+                const totalActualSales = scenario.actualSales.reduce((sum, sale) => sum + sale, 0);
+                const gap = Math.abs(bufferSize - totalActualSales);
+                const gapPercentage = ((gap / bufferSize) * 100).toFixed(1);
+                
+                // Calculate relative width based on buffer size
+                const relativeWidth = (bufferSize / maxBufferSize) * 100;
+                
+                let gapClass = 'gap-poor';
+                if (gapPercentage < 10) gapClass = 'gap-good';
+                else if (gapPercentage < 20) gapClass = 'gap-fair';
+                
+                const scenarioDiv = document.createElement('div');
+                scenarioDiv.className = 'scenario';
+                scenarioDiv.id = `scenario-${index}`;
+                
+                scenarioDiv.innerHTML = `
+                    <div class="scenario-header">
+                        <div class="scenario-title">${scenario.name}</div>
+                        <div class="gap-indicator ${gapClass}" id="gap-${index}" style="opacity: 0;">Gap: ${gapPercentage}%</div>
+                    </div>
+                    <div class="buffer-visualization">
+                        <div class="buffer-total" id="buffer-total-${index}" style="width: ${relativeWidth}%;">
+                            ADU×Buffer Days: ${bufferSize.toFixed(0)} units
+                        </div>
+                        <div class="buffer-consumed" id="buffer-consumed-${index}" style="width: 0%;"></div>
+                        <div class="buffer-gap" id="buffer-gap-${index}" style="width: 0%;"></div>
+                    </div>
+                    <div class="daily-consumption" id="consumption-${index}">
+                        ${scenario.actualSales.map((sale, dayIndex) => 
+                            `<div class="day" id="day-${index}-${dayIndex}">Day ${dayIndex + 1}: ${sale}</div>`
+                        ).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(scenarioDiv);
+            });
+        }
+
+        async function runSimulation() {
+            if (isRunning) return;
+            isRunning = true;
+            
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('resetBtn').disabled = true;
+            
+            // Reset all scenarios
+            resetSimulation();
+            
+            // Run all scenarios simultaneously
+            const promises = scenarios.map((scenario, scenarioIndex) => 
+                animateScenario(scenario, scenarioIndex)
+            );
+            
+            await Promise.all(promises);
+            
+            // Show gap indicators with animation
+            await showGapIndicators();
+            
+            // Find and highlight the winner (30-day model)
+            await highlightWinner();
+            
+            document.getElementById('runBtn').disabled = false;
+            document.getElementById('resetBtn').disabled = false;
+            isRunning = false;
+        }
+        
+        async function showGapIndicators() {
+            // Show all gap indicators with staggered animation
+            for (let i = 0; i < scenarios.length; i++) {
+                document.getElementById(`gap-${i}`).style.transition = 'opacity 0.5s ease';
+                document.getElementById(`gap-${i}`).style.opacity = '1';
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+        
+        async function highlightWinner() {
+            // Wait a moment for dramatic effect
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // The 30-day model (index 0) is the winner
+            document.getElementById('scenario-0').classList.add('winner');
+        }
+
+        async function animateScenario(scenario, scenarioIndex) {
+            const bufferSize = scenario.calculatedADU * scenario.bufferDays;
+            const maxBufferSize = Math.max(...scenarios.map(s => s.calculatedADU * s.bufferDays));
+            const relativeWidth = (bufferSize / maxBufferSize) * 100;
+            let consumedUnits = 0;
+            
+            for (let day = 0; day < scenario.actualSales.length; day++) {
+                // Show day counter for first scenario only
+                if (scenarioIndex === 0) {
+                    const dayCounter = document.getElementById('dayCounter');
+                    dayCounter.textContent = `Day ${day + 1}`;
+                    dayCounter.classList.add('show');
+                    
+                    // Hide day counter after a moment
+                    setTimeout(() => {
+                        dayCounter.classList.remove('show');
+                    }, 500);
+                }
+                
+                // Highlight current day
+                const dayElement = document.getElementById(`day-${scenarioIndex}-${day}`);
+                dayElement.classList.add('active');
+                
+                // Add today's consumption
+                consumedUnits += scenario.actualSales[day];
+                
+                // Update visual bars - consumption relative to the actual buffer bar size
+                const consumedPercentage = Math.min((consumedUnits / bufferSize) * relativeWidth, relativeWidth);
+                document.getElementById(`buffer-consumed-${scenarioIndex}`).style.width = `${consumedPercentage}%`;
+                
+                // Calculate and show gap
+                const gap = bufferSize - consumedUnits;
+                const gapPercentage = Math.abs(gap / bufferSize) * 100;
+                
+                if (consumedUnits > bufferSize) {
+                    // Over-consumption - show as extension beyond the buffer bar
+                    const overPercentage = ((consumedUnits - bufferSize) / maxBufferSize) * 100;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).style.width = `${overPercentage}%`;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).style.left = `${relativeWidth}%`;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).textContent = `Over: ${(consumedUnits - bufferSize).toFixed(0)}`;
+                } else if (day === scenario.actualSales.length - 1) {
+                    // Final gap - show remaining within the buffer bar
+                    const remainingPercentage = (gap / bufferSize) * relativeWidth;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).style.width = `${remainingPercentage}%`;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).style.left = `${consumedPercentage}%`;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).textContent = `Under: ${gap.toFixed(0)}`;
+                }
+                
+                // Wait longer between days for clearer daily progression
+                await new Promise(resolve => setTimeout(resolve, 750));
+            }
+        }
+
+        function highlightBestScenario() {
+            let bestIndex = 0;
+            let smallestGap = Infinity;
+            
+            scenarios.forEach((scenario, index) => {
+                const bufferSize = scenario.calculatedADU * scenario.bufferDays;
+                const totalActualSales = scenario.actualSales.reduce((sum, sale) => sum + sale, 0);
+                const gap = Math.abs(bufferSize - totalActualSales);
+                
+                if (gap < smallestGap) {
+                    smallestGap = gap;
+                    bestIndex = index;
+                }
+            });
+            
+            // Remove previous best highlighting
+            document.querySelectorAll('.scenario').forEach(el => el.classList.remove('best'));
+            
+            // Highlight the best scenario
+            document.getElementById(`scenario-${bestIndex}`).classList.add('best');
+        }
+
+        function resetSimulation() {
+            // Hide day counter
+            document.getElementById('dayCounter').classList.remove('show');
+            
+            scenarios.forEach((scenario, index) => {
+                document.getElementById(`buffer-consumed-${index}`).style.width = '0%';
+                document.getElementById(`buffer-gap-${index}`).style.width = '0%';
+                document.getElementById(`buffer-gap-${index}`).style.left = '0%';
+                document.getElementById(`buffer-gap-${index}`).textContent = '';
+                
+                // Hide gap indicators
+                document.getElementById(`gap-${index}`).style.opacity = '0';
+                
+                scenario.actualSales.forEach((sale, dayIndex) => {
+                    document.getElementById(`day-${index}-${dayIndex}`).classList.remove('active');
+                });
+            });
+            
+            document.querySelectorAll('.scenario').forEach(el => {
+                el.classList.remove('best');
+                el.classList.remove('winner');
+            });
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initializeScenarios();
+        };
+    </script>
+</body>
+</html>
