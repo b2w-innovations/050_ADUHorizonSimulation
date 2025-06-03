@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ADU Buffer Performance Simulation</title>
+    <title>ADU Horizon Setting Performance Simulation</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -460,7 +460,7 @@
                     const remainingPercentage = (gap / bufferSize) * relativeWidth;
                     document.getElementById(`buffer-gap-${scenarioIndex}`).style.width = `${remainingPercentage}%`;
                     document.getElementById(`buffer-gap-${scenarioIndex}`).style.left = `${consumedPercentage}%`;
-                    document.getElementById(`buffer-gap-${scenarioIndex}`).textContent = `Under: ${gap.toFixed(0)}`;
+                    document.getElementById(`buffer-gap-${scenarioIndex}`).textContent = `Left: ${gap.toFixed(0)}`;
                 }
                 
                 // Wait longer between days for clearer daily progression
